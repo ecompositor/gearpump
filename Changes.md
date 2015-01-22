@@ -1,3 +1,25 @@
+gearpump-0.2.2
+====================
+Change List:
+-----------------
+ - #327 fix 0.2.1 build error
+ - #308 add another dag example project
+ - #330 Allow user to output the metrics to log file besides graphite
+
+gearpump-0.2.1
+====================
+
+Change List:
+-----------------
+ - #244, add more UT, 
+ - #250, refactor kafka implementations
+ - #301, fix UserConfig ClassNotFoundException
+ - #306, ClassNotFound for customized Application type
+ - #299 fix SeqFileStreamProcessorSpec
+ - #320 fix dead lock in StreamTestUtil.createEchoTaskActor
+ - #317, allow user to customize the akka system config for appmaste… 
+ - #244, add KafkaUtilSpec and kafka integration test
+
 gearpump-0.2
 =========================
 

@@ -28,7 +28,7 @@ import com.typesafe.config.{Config, ConfigFactory, ConfigParseOptions, ConfigVal
 import org.apache.commons.io.FileUtils
 import org.apache.gearpump.cluster.MasterHarness.MockMaster
 import org.apache.gearpump.util.Constants._
-import org.apache.gearpump.util.{ActorUtil, Util}
+import org.apache.gearpump.util.{LogUtil, ActorUtil, Util}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.Duration
@@ -36,6 +36,8 @@ import scala.sys.process.Process
 import scala.util.Try
 
 trait MasterHarness {
+  private val LOG = LogUtil.getLogger(getClass)
+
   private var system: ActorSystem = null
   private var systemAddress: Address = null
   private var host: String = null
@@ -54,15 +56,17 @@ trait MasterHarness {
     systemAddress = ActorUtil.getSystemAddress(system)
     host = systemAddress.host.get
     port = systemAddress.port.get
+    LOG.info(s"Actor system is started, $host, $port")
   }
 
   def shutdownActorSystem():Unit = {
     system.shutdown()
+    LOG.info(s"Actor system is stopped, $host, $port")
   }
 
   def startMasterProcess(host: String, port: Int): Process ={
     val tempTestConf = convertTestConf(host, port)
-    Util.startProcess(Array(s"-Dconfig.file=${tempTestConf.toString}"),
+    Util.startProcess(Array(s"-D$GEARPUMP_CUSTOM_CONFIG_FILE=${tempTestConf.toString}"),
       getContextClassPath,
       getMainClassName(org.apache.gearpump.cluster.main.Master),
       Array("-ip", host, "-port", port.toString))

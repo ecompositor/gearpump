@@ -33,34 +33,45 @@ import org.slf4j.Logger
 object KafkaUtil {
   private val LOG: Logger = LogUtil.getLogger(getClass)
 
-  def getBroker(config: KafkaConfig, topic: String, partition: Int): Broker = {
-    val zkClient = buildZkClient(config)
-    val leader =  ZkUtils.getLeaderForPartition(zkClient, topic, partition)
-      .getOrElse(throw new RuntimeException(s"leader not available for TopicAndPartition($topic, $partition)"))
-    val broker = ZkUtils.getBrokerInfo(zkClient, leader)
-      .getOrElse(throw new RuntimeException(s"broker info not found for leader $leader"))
-    zkClient.close()
-    Broker(broker.host, broker.port)
+  def getBroker(zkClient: ZkClient, topic: String, partition: Int): Broker = {
+    try {
+      val leader = ZkUtils.getLeaderForPartition(zkClient, topic, partition)
+        .getOrElse(throw new RuntimeException(s"leader not available for TopicAndPartition($topic, $partition)"))
+      val broker = ZkUtils.getBrokerInfo(zkClient, leader)
+        .getOrElse(throw new RuntimeException(s"broker info not found for leader $leader"))
+      Broker(broker.host, broker.port)
+    } catch {
+      case e: Exception => throw e
+    } finally {
+      zkClient.close()
+    }
   }
 
-  def getTopicAndPartitions(config: KafkaConfig, grouper: KafkaGrouper, consumerTopics: List[String]): Array[TopicAndPartition] = {
-    val zkClient = buildZkClient(config)
-    val tps = grouper.group(
-      ZkUtils.getPartitionsForTopics(zkClient, consumerTopics)
-        .flatMap { case (topic, partitions) =>
-        partitions.map(TopicAndPartition(topic, _)) }.toArray)
-    zkClient.close()
-    tps
+  def getTopicAndPartitions(zkClient: ZkClient, grouper: KafkaGrouper, consumerTopics: List[String]): Array[TopicAndPartition] = {
+    try {
+      val tps = grouper.group(
+        ZkUtils.getPartitionsForTopics(zkClient, consumerTopics)
+          .flatMap { case (topic, partitions) =>
+          partitions.map(TopicAndPartition(topic, _))
+        }.toArray)
+      tps
+    } catch {
+      case e: Exception => throw e
+    } finally {
+      zkClient.close()
+    }
   }
 
   /**
    *  create a new kafka topic
    *  return true if topic already exists, and false otherwise
+   *
+   *  Note: Do not call getBroker immediately after create topic as leader election and
+   *  metadata propagation takes time
    */
-  def createTopic(config: KafkaConfig, topic: String, replicas: Int): Boolean = {
-    val zkClient = buildZkClient(config)
+  def createTopic(zkClient: ZkClient, topic: String, partitions: Int, replicas: Int): Boolean = {
     try {
-      AdminUtils.createTopic(zkClient, topic, 1, replicas)
+      AdminUtils.createTopic(zkClient, topic, partitions, replicas)
       LOG.info(s"created topic $topic")
       false
     } catch {
@@ -84,7 +95,7 @@ object KafkaUtil {
     new ProducerConfig(props)
   }
 
-  def buildZkClient(config: KafkaConfig): ZkClient = {
+  def connectZookeeper(config: KafkaConfig): ZkClient = {
     val zookeeperConnect = config.getZookeeperConnect
     val sessionTimeout = config.getSocketTimeoutMS
     val connectionTimeout = config.getSocketTimeoutMS

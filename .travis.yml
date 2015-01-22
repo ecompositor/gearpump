@@ -16,4 +16,33 @@ cache:
     - $HOME/.ivy2
 git:
   depth: 1
-after_success: codecov
+
+env:
+  global:
+  - secure: HLEt1PMZ8gIv1jmM7t+El8EP2I04ojPPMsjMYOfE9HxvpZ9d+xqF5M6vh43o96nq0dPLDMggZLR2WZ8DA1SSidE3+4dVGMl621kKX9wBFzenliiO8NmYpT7MisTjjSS1HLgQhCGXf77WVZVpziit1PXFR3+hSzekE8t+ZWtBvjQ=
+  - secure: VyJnDR7aPtqzWmy6GX17KYI5YYGvve7kCzfng8s5/m0scIC9RhlSBv6rya7r8BFPq0OXWzZhamm44MOF+Z5Ct30vg7IpHOX6H+KwECfMoj3vV6un+OAsk+hfy5uDxGMFqMHa71W8s0URcv3p+xntjzDSGAydQsH98PMEvQ8KqG8=
+  
+after_success: 
+ - codecov
+   ## publish to snapshot repo
+ - 'if [[ $TRAVIS_BRANCH == "master" && $TRAVIS_PULL_REQUEST == "false" && $TRAVIS_TAG == "" ]];then
+   sbt publish;
+   fi'
+   ## publish to release repo
+ - 'if [[ $TRAVIS_TAG != "" && $TRAVIS_PULL_REQUEST == "false" ]];then
+   sbt publish;
+   fi'
+ 
+before_deploy:
+ - sbt assembly packArchive travis_deploy
+ 
+deploy:
+  provider: releases
+  skip_cleanup: true
+  api_key:
+    secure: NYY003Bum6aL5h5Au8nCEY51lnDcsCErvmfzpIh0CWNY4UKnADSXkJPdureAf3OR7eMFmQxMi1rL2MQtOjlCWgaPO4TmEJrXB3vMZTTyj1COst5WIQV8S/BbgDzKFEP9zuRNbMXdRJqf0rEhIrKPagXkOTDaGNijmjCCh5y62M4=
+  file: 'target/binary.gearpump.tar.gz'
+  on:
+    repo: intel-hadoop/gearpump
+    tags: true
+    all_branches: true
